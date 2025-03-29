@@ -1,5 +1,6 @@
 package dev.zorsh
 
+import kotlinx.coroutines.delay
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.World
@@ -8,6 +9,7 @@ import kotlin.math.round
 
 class ZorshizenParser {
     private val variables = HashMap<String, ZVariable>()
+    private var working = 0.0
 
     // =================================================================================================================
 
@@ -145,7 +147,7 @@ class ZorshizenParser {
 
     // =================================================================================================================
 
-    private fun ZorshizenFunction.invoke(player: Player, depth: Int = 0): ZVariable {
+    private suspend fun ZorshizenFunction.invoke(player: Player, depth: Int = 0): ZVariable {
         val args = mutableListOf<ZVariable>()
         this.args.forEach { arg ->
             if (arg.type == "Pointer") {
@@ -211,6 +213,18 @@ class ZorshizenParser {
                 }
                 val w: World = Bukkit.getWorld(args[0].toString()) ?: throw IllegalArgumentException("Мир с именем ${args[0]} не найден")
                 return ZVariable(w)
+            }
+            "wait" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции wait нужен 1 аргумент")
+                }
+                val duration = args[0].number().toLong()
+                working += duration
+                if (working > 100000) {
+                    throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
+                }
+                delay(duration)
+                return ZVariable(duration.toDouble())
             }
             "name" -> {
                 if (args.size != 1) {
@@ -290,7 +304,7 @@ class ZorshizenParser {
 
     // =================================================================================================================
 
-    private fun ZorshizenInstruction.convertToExpression(player: Player): MutableList<ZorshizenToken> {
+    private suspend fun ZorshizenInstruction.convertToExpression(player: Player): MutableList<ZorshizenToken> {
         val result = mutableListOf<ZorshizenToken>()
         val operators = mutableListOf<ZorshizenToken>()
 
@@ -522,7 +536,7 @@ class ZorshizenParser {
 
     // =================================================================================================================
 
-    private fun parseInstruction(instructionText: String) {
+    private suspend fun parseInstruction(instructionText: String) {
         val player: Player = variables["__player"]!!.player()
         val instruction = ZorshizenInstruction(instructionText)
 //    player.sendMessage("§7Parsing: §b${instruction}")
@@ -532,7 +546,7 @@ class ZorshizenParser {
         //player.logZorshizen("Evaluated: ${evaluate(expression, player)}")
     }
 
-    private fun parseInstructions(instructions: List<String>): ZorshizenError? {
+    private suspend fun parseInstructions(instructions: List<String>): ZorshizenError? {
         var i = 0
         instructions.forEach { instructionRaw ->
             i++
@@ -553,7 +567,7 @@ class ZorshizenParser {
         return null
     }
 
-    private fun parseSpellErrors(spellText: String, player: Player): SpellParsingResult? {
+    private suspend fun parseSpellErrors(spellText: String, player: Player): SpellParsingResult? {
         if (!spellText.contains("Code:") || !spellText.substringAfter("Code:").contains("\n")) {
             return SpellParsingResult(true, "Код должен обозначаться при помощи §7'§eCode:§7'")
         }
@@ -571,7 +585,7 @@ class ZorshizenParser {
         return null
     }
 
-    fun parseSpell(spellText: String, player: Player) {
+    suspend fun parseSpell(spellText: String, player: Player) {
         val parsingResult = parseSpellErrors(spellText.substringAfter("Name:").substringAfter("\n"), player)
         if (parsingResult != null) {
             if (parsingResult.isError) {

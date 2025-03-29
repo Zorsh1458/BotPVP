@@ -1,7 +1,9 @@
 package dev.zorsh
 
+import kotlinx.coroutines.*
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
+import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
@@ -10,10 +12,12 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
 import java.io.File
+import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 
 class ZorshizenListener: Listener {
+    @OptIn(DelicateCoroutinesApi::class)
     @EventHandler
     fun onPlayerRightClicksBlock(event: PlayerInteractEvent) {
         val player = event.player
@@ -28,7 +32,9 @@ class ZorshizenListener: Listener {
                     //player.sendMessage("§fЗаклинание: §d$itemData")
                     val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
                     val parser = ZorshizenParser()
-                    parser.parseSpell(spellText, player)
+                    GlobalScope.launch {
+                        parser.parseSpell(spellText, player)
+                    }
                     //player.sendMessage(spellText)
                 }
             }
