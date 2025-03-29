@@ -68,6 +68,8 @@ class ZorshizenParser {
             "-" -> v1 - v2
             "*" -> v1 * v2.number()
             "/" -> v1 / v2.number()
+            ">" -> if (v1.number() > v2.number()) ZVariable(true) else ZVariable(false)
+            "<" -> if (v1.number() < v2.number()) ZVariable(true) else ZVariable(false)
             "=" -> v1.set(v2)
             else -> throw IllegalArgumentException("Невозможно применить оператор '$operatorValue' к '$v1' и '$v2'")
         }
@@ -77,7 +79,7 @@ class ZorshizenParser {
 
     fun ZVariable.get(): ZVariable {
         if (type != "Pointer")
-            throw  IllegalArgumentException("Взять переменную можно только у Pointer")
+            throw  IllegalArgumentException("Взять значение можно только у переменной")
         return variables[(value as ZVariablePointer).target] ?: throw IllegalArgumentException("Переменной с именем ${(value as ZVariablePointer).target} не существует")
     }
 
@@ -87,7 +89,7 @@ class ZorshizenParser {
 
     fun ZVariable.set(new: ZVariable): ZVariable {
         if (type != "Pointer")
-            throw  IllegalArgumentException("Изменить переменную можно только у Pointer")
+            throw  IllegalArgumentException("Присвоить значение можно только переменной")
         variables[(value as ZVariablePointer).target] = new
         pointerString = new.toString()
         return this
@@ -100,6 +102,7 @@ class ZorshizenParser {
             "Number" -> return ZVariable(number()+v.number())
             "Location" -> return ZVariable(location()+v.location())
             "World" -> throw IllegalArgumentException("Нельзя использовать + с переменной типа World")
+            "Boolean" -> throw IllegalArgumentException("Нельзя использовать + с переменной типа Boolean")
             "String" -> return ZVariable(string()+v.string())
             "Pointer" -> return get() + v
         }
@@ -113,6 +116,7 @@ class ZorshizenParser {
             "Number" -> return ZVariable(number()-v.number())
             "Location" -> return ZVariable(location()-v.location())
             "World" -> throw IllegalArgumentException("Нельзя использовать - с переменной типа World")
+            "Boolean" -> throw IllegalArgumentException("Нельзя использовать - с переменной типа Boolean")
             "String" -> throw IllegalArgumentException("Нельзя использовать - с переменной типа String")
             "Pointer" -> return get() - v
         }
@@ -126,6 +130,7 @@ class ZorshizenParser {
             "Number" -> return ZVariable(number()*m)
             "Location" -> return ZVariable(location()*m)
             "World" -> throw IllegalArgumentException("Нельзя использовать * с переменной типа World")
+            "Boolean" -> throw IllegalArgumentException("Нельзя использовать * с переменной типа Boolean")
             "String" -> return ZVariable(string()*m.toInt())
             "Pointer" -> return get() * m
         }
@@ -139,10 +144,21 @@ class ZorshizenParser {
             "Number" -> return ZVariable(number()/m)
             "Location" -> return ZVariable(location()/m)
             "World" -> throw IllegalArgumentException("Нельзя использовать / с переменной типа World")
+            "Boolean" -> throw IllegalArgumentException("Нельзя использовать / с переменной типа Boolean")
             "String" -> throw IllegalArgumentException("Нельзя использовать / с переменной типа String")
             "Pointer" -> return get() / m
         }
         throw IllegalArgumentException("Неопознанный тип переменной (/): [$type]")
+    }
+
+    // =================================================================================================================
+
+    private suspend fun delayZorshizen(duration: Long) {
+        working += duration
+        if (working > 100000) {
+            throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
+        }
+        delay(duration)
     }
 
     // =================================================================================================================
@@ -219,11 +235,7 @@ class ZorshizenParser {
                     throw IllegalArgumentException("Для функции wait нужен 1 аргумент")
                 }
                 val duration = args[0].number().toLong()
-                working += duration
-                if (working > 100000) {
-                    throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
-                }
-                delay(duration)
+                delayZorshizen(duration)
                 return ZVariable(duration.toDouble())
             }
             "name" -> {
@@ -284,17 +296,21 @@ class ZorshizenParser {
         }
     }
 
-    private fun String.findFunctionEnd(): Int? {
+    private fun String.findEnd(start: Char, end: Char): Int? {
         var skobko = 0
         var ind = 0
+        var kav = false
         for (c in this) {
-            if (c == '(') {
+            if (c == '"') {
+                kav = !kav
+            }
+            if (c == start && !kav) {
                 skobko++
             }
-            if (c == ')') {
+            if (c == end && !kav) {
                 skobko--
             }
-            if (c == ')' && skobko <= 0) {
+            if (c == end && !kav && skobko <= 0) {
                 return ind
             }
             ind++
@@ -322,27 +338,73 @@ class ZorshizenParser {
                 continue
             }
 
-            if (c == '<') {
+            if (text.substring(charIndex).startsWith("true")) {
+                result.add(ZorshizenToken(ZVariable(true)))
+                skip = 3
+                prev = 'V'
+                charIndex++
+                continue
+            }
+
+            if (text.substring(charIndex).startsWith("false")) {
+                result.add(ZorshizenToken(ZVariable(false)))
+                skip = 4
+                prev = 'V'
+                charIndex++
+                continue
+            }
+
+            val varStart = '['
+            val varEnd = ']'
+
+            if (c == varStart) {
                 val str = text.substring(charIndex)
                 if (str.length < 2) {
-                    throw IllegalArgumentException("Имя переменной должно закрываться символом '>'")
+                    throw IllegalArgumentException("Имя переменной должно закрываться символом '$varEnd'")
                 }
-                if (!str.substringAfter('<').contains('>')) {
-                    throw IllegalArgumentException("Имя переменной должно закрываться символом '>'")
+                if (!str.substringAfter(varStart).contains(varEnd)) {
+                    throw IllegalArgumentException("Имя переменной должно закрываться символом '$varEnd'")
                 }
-                val txt = str.substringAfter('<').substringBefore('>')
-                if (txt.contains(' ')) {
-                    throw IllegalArgumentException("Имя переменной не должно содержать пробелов")
+                val ind: Int = str.findEnd('[', ']') ?: throw IllegalArgumentException("Имя переменной должно закрываться символом '$varEnd'")
+                val txt = str.substring(1, ind)
+                if (txt.trim().isEmpty()) {
+                    throw IllegalArgumentException("Имя переменной не может быть пустым")
                 }
-                if (txt.contains('.') || txt.contains(',') || txt.contains(';') || txt.contains(':') || txt.contains('%') || txt.contains('^') || txt.contains('+') || txt.contains('-') || txt.contains('*') || txt.contains('/')) {
-                    throw IllegalArgumentException("Имя переменной не должно содержать специальных символов")
-                }
-                if (variables.containsKey(txt)) {
-                    result.add(ZorshizenToken(ZVariable(ZVariablePointer(txt), variables[txt].toString())))
+                if (txt[0] == varStart && txt.last() == varEnd) {
+                    var eval = txt.substring(1, txt.length-1)
+                    if (eval.trim().isEmpty()) {
+                        throw IllegalArgumentException("Имя переменной не может быть пустым")
+                    }
+                    eval = evaluate(ZorshizenInstruction(eval).convertToExpression(player), player).toString()
+                    if (eval.trim().isEmpty()) {
+                        throw IllegalArgumentException("Имя переменной не может быть пустым")
+                    }
+                    if (eval.contains(' ')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать пробелов")
+                    }
+                    if (eval.contains('.') || eval.contains(',') || eval.contains(';') || eval.contains('{') || eval.contains('}') || eval.contains(':') || eval.contains('%') || eval.contains('^') || eval.contains('+') || eval.contains('-') || eval.contains('*') || eval.contains('/')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов")
+                    }
+                    if (variables.containsKey(eval)) {
+                        result.add(ZorshizenToken(ZVariable(ZVariablePointer(eval), variables[eval].toString())))
+                    } else {
+                        result.add(ZorshizenToken(ZVariable(ZVariablePointer(eval))))
+                    }
+                    skip = txt.length + 2
                 } else {
-                    result.add(ZorshizenToken(ZVariable(ZVariablePointer(txt))))
+                    if (txt.contains(' ')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать пробелов")
+                    }
+                    if (txt.contains('.') || txt.contains(',') || txt.contains(';') || txt.contains('{') || txt.contains('}') || txt.contains(':') || txt.contains('%') || txt.contains('^') || txt.contains('+') || txt.contains('-') || txt.contains('*') || txt.contains('/')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов")
+                    }
+                    if (variables.containsKey(txt)) {
+                        result.add(ZorshizenToken(ZVariable(ZVariablePointer(txt), variables[txt].toString())))
+                    } else {
+                        result.add(ZorshizenToken(ZVariable(ZVariablePointer(txt))))
+                    }
+                    skip = txt.length + 1
                 }
-                skip = txt.length+1
 
                 prev = 'V'
                 charIndex++
@@ -372,7 +434,7 @@ class ZorshizenParser {
                     val func = str.substringBefore('(')
 
                     val after = str.substringAfter(func)
-                    val end = after.findFunctionEnd() ?: throw IllegalArgumentException("Вызов функции должен оканчиваться символом ')'")
+                    val end = after.findEnd('(',  ')') ?: throw IllegalArgumentException("Вызов функции должен оканчиваться символом ')'")
 
                     var argsText = after.substringAfter('(').substring(0, end-1)
                     //player.logZorshizen("ABOBA: $argsText")
@@ -589,7 +651,7 @@ class ZorshizenParser {
         val parsingResult = parseSpellErrors(spellText.substringAfter("Name:").substringAfter("\n"), player)
         if (parsingResult != null) {
             if (parsingResult.isError) {
-                player.sendMessage("§c[Zorshizen Error] §7Произошла ошибка: §c${parsingResult.message}")
+                player.sendMessage("§c[Zorshizen Error] §7Произошла ошибка:\n§c${parsingResult.message}")
             } else {
                 player.sendMessage("§a${parsingResult.message}")
             }

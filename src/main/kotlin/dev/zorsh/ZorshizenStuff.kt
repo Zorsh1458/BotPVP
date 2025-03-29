@@ -75,6 +75,7 @@ class ZVariable(var type: String, var value: Any, var pointerString: String? = n
     constructor(l: Location) : this("Location", l) {}
     constructor(w: World) : this("World", w) {}
     constructor(s: String) : this("String", s) {}
+    constructor(b: Boolean) : this("Boolean", b) {}
     constructor(z: ZVariablePointer) : this("Pointer", z) {}
     constructor(z: ZVariablePointer, s: String) : this("Pointer", z, s) {}
 
@@ -105,10 +106,12 @@ enum class TokenType {
 
 val OPERATOR_PRIORITIES = hashMapOf(
     Pair("=", -1),
-    Pair("+", 1),
-    Pair("-", 1),
-    Pair("*", 2),
-    Pair("/", 2),
+    Pair(">", 1),
+    Pair("<", 1),
+    Pair("+", 2),
+    Pair("-", 2),
+    Pair("*", 3),
+    Pair("/", 3),
     Pair("(", -20),
     Pair(")", -19)
 )
