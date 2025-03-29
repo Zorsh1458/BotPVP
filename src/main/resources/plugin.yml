@@ -1,0 +1,10 @@
+name: Zorshizen2
+version: 1.4.8.8
+main: dev.mryd.Main
+authors:
+  - Zorsh
+api-version: '1.21'
+commands:
+  zorshizen:
+    description: Zorshizen Admin command
+    permission: op
