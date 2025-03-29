@@ -1,6 +1,5 @@
 package dev.zorsh
 
-import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
 import org.bukkit.event.EventHandler
@@ -10,7 +9,6 @@ import org.bukkit.event.player.PlayerEditBookEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
-import org.w3c.dom.Text
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -43,7 +41,7 @@ class ZorshizenListener: Listener {
         val pages = event.newBookMeta.pageCount
         if (pages > 0) {
             val fPage = (event.newBookMeta.page(1) as TextComponent).content()
-            if (fPage.startsWith("[SPELL]") && fPage.contains("\n") && fPage.substringAfter("\n").startsWith("Name: ")) {
+            if (fPage.startsWith("[ZORSHIZEN]") && fPage.contains("\n") && fPage.substringAfter("\n").startsWith("Name: ")) {
                 var spellName = fPage.substringAfter("\nName: ")
                 if (spellName.contains(" ")) {
                     spellName = spellName.substringBefore(" ")

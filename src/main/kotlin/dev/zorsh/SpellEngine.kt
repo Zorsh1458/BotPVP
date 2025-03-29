@@ -1,15 +1,17 @@
 package dev.zorsh
 
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.entity.Player
+import kotlin.math.round
 
 class ZorshizenParser {
     private val variables = HashMap<String, ZVariable>()
 
     // =================================================================================================================
 
-    fun ZVariable.player(): Player {
+    private fun ZVariable.player(): Player {
         if (type == "Pointer")
             return get().player()
         if (value !is Player)
@@ -17,15 +19,19 @@ class ZorshizenParser {
         return (value as Player)
     }
 
-    fun ZVariable.vector(): ZVector {
+    private fun ZVariable.vector(): ZVector {
         if (type == "Pointer")
             return get().vector()
+        if (type == "Location") {
+            val loc = (value as Location)
+            return ZVector(loc.x, loc.y, loc.z)
+        }
         if (value !is ZVector)
             throw  IllegalArgumentException("Не удалось привести переменную к типу Vector")
         return (value as ZVector)
     }
 
-    fun ZVariable.number(): Double {
+    private fun ZVariable.number(): Double {
         if (type == "Pointer")
             return get().number()
         if (value !is Double)
@@ -33,7 +39,7 @@ class ZorshizenParser {
         return (value as Double)
     }
 
-    fun ZVariable.location(): Location {
+    private fun ZVariable.location(): Location {
         if (type == "Pointer")
             return get().location()
         if (value !is Location)
@@ -41,7 +47,7 @@ class ZorshizenParser {
         return (value as Location)
     }
 
-    fun ZVariable.world(): World {
+    private fun ZVariable.world(): World {
         if (type == "Pointer")
             return get().world()
         if (value !is World)
@@ -140,15 +146,125 @@ class ZorshizenParser {
     // =================================================================================================================
 
     private fun ZorshizenFunction.invoke(player: Player, depth: Int = 0): ZVariable {
+        val args = mutableListOf<ZVariable>()
+        this.args.forEach { arg ->
+            if (arg.type == "Pointer") {
+                args.add(arg.get())
+            } else {
+                args.add(arg)
+            }
+        }
         when (name) {
-            "print" -> {
+            "printf" -> {
                 if (args.isEmpty()) {
-                    throw IllegalArgumentException("Для функции print нужен 1 аргумент")
+                    throw IllegalArgumentException("Для функции printf нужен хотя бы 1 аргумент")
                 }
 
-                player.logZorshizen(args[0].toString())
+                val delimeter = args[0].toString()
+                var toPrint = ""
+                var first = true
+                args.drop(1).forEach { arg ->
+                    if (!first) {
+                        toPrint += delimeter
+                    }
 
-                return ZVariable(args[0].toString().length.toDouble())
+                    toPrint += arg.toString()
+                    first = false
+                }
+
+                player.logZorshizen(toPrint)
+
+                return ZVariable(toPrint.length.toDouble())
+            }
+            "print" -> {
+                var toPrint = ""
+                var first = true
+                args.forEach { arg ->
+                    if (!first) {
+                        toPrint += ", "
+                    }
+
+                    toPrint += arg.toString()
+                    first = false
+                }
+
+                player.logZorshizen(toPrint)
+
+                return ZVariable(toPrint.length.toDouble())
+            }
+            "Player" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции Player нужен 1 аргумент")
+                }
+                val pl: Player = Bukkit.getPlayer(args[0].toString()) ?: throw IllegalArgumentException("Игрок с именем ${args[0]} не найден")
+                return ZVariable(pl)
+            }
+            "Vector" -> {
+                if (args.size != 3) {
+                    throw IllegalArgumentException("Для функции Vector нужны 3 аргумента")
+                }
+                return ZVariable(ZVector(args[0].number(), args[1].number(), args[2].number()))
+            }
+            "World" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции World нужен 1 аргумент")
+                }
+                val w: World = Bukkit.getWorld(args[0].toString()) ?: throw IllegalArgumentException("Мир с именем ${args[0]} не найден")
+                return ZVariable(w)
+            }
+            "name" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции name нужен 1 аргумент")
+                }
+                return ZVariable(args[0].player().name)
+            }
+            "round" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции round нужен 1 аргумент")
+                }
+                return ZVariable(round(args[0].number()))
+            }
+            "x" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции X нужен 1 аргумент")
+                }
+                return ZVariable(args[0].vector().x)
+            }
+            "y" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции X нужен 1 аргумент")
+                }
+                return ZVariable(args[0].vector().y)
+            }
+            "z" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции X нужен 1 аргумент")
+                }
+                return ZVariable(args[0].vector().z)
+            }
+            "locationX" -> {
+                return ZVariable(ZorshizenFunction("Location", args).invoke(player, depth).location().x)
+            }
+            "locationY" -> {
+                return ZVariable(ZorshizenFunction("Location", args).invoke(player, depth).location().y)
+            }
+            "locationZ" -> {
+                return ZVariable(ZorshizenFunction("Location", args).invoke(player, depth).location().z)
+            }
+            "Location" -> {
+                if (args.size == 1 && args[0].type == "Player") {
+                    return ZVariable(args[0].player().location)
+                }
+
+                if (args.size == 2 && args[0].type == "Vector" && args[1].type == "World") {
+                    return ZVariable(Location(args[1].world(), args[0].vector().x, args[0].vector().y, args[0].vector().z))
+                }
+
+                if (args.size == 4 && args[0].type == "Number" && args[1].type == "Number" && args[2].type == "Number" && args[3].type == "World") {
+                    return ZVariable(Location(args[3].world(), args[0].number(), args[1].number(), args[2].number()))
+                }
+
+                throw IllegalArgumentException("Использование: Location(Player) или Location(Vector, World) или Location(Number, Number, Number, World)")
             }
             else -> throw IllegalArgumentException("Функция $name не найдена!")
         }
@@ -250,16 +366,36 @@ class ZorshizenParser {
                     argsText = argsText.trim()
 
                     val args = mutableListOf<ZVariable>()
-                    if (argsText.isNotEmpty()) {
-                        val toParse = argsText.split(',')
-                        toParse.forEach { arg ->
+                    var arg = ""
+                    var kav = false
+                    for (argC in argsText) {
+                        if (argC == '"') {
+                            kav = !kav
+                        }
+                        if (argC == ',' && !kav) {
                             if (arg.trim().isEmpty()) {
                                 throw IllegalArgumentException("Аргумент функции не может быть пустым выражением ($func)")
                             }
 
                             args.add(evaluate(ZorshizenInstruction(arg.trim()).convertToExpression(player), player))
+                            arg = ""
+                        } else {
+                            arg += argC
                         }
                     }
+                    if (arg.trim().isNotEmpty()) {
+                        args.add(evaluate(ZorshizenInstruction(arg.trim()).convertToExpression(player), player))
+                    }
+//                    if (argsText.isNotEmpty()) {
+//                        val toParse = argsText.split(',')
+//                        toParse.forEach { arg ->
+//                            if (arg.trim().isEmpty()) {
+//                                throw IllegalArgumentException("Аргумент функции не может быть пустым выражением ($func)")
+//                            }
+//
+//                            args.add(evaluate(ZorshizenInstruction(arg.trim()).convertToExpression(player), player))
+//                        }
+//                    }
 
                     result.add(ZorshizenToken(ZorshizenFunction(func, args).invoke(player, depth=0)))
                     prev = 'F'

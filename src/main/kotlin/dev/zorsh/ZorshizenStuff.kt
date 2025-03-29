@@ -3,9 +3,6 @@ package dev.zorsh
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.entity.Player
-import java.util.HashMap
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 import kotlin.math.sqrt
 
 operator fun Location.plus(l: Location): Location {
@@ -70,7 +67,7 @@ class ZVariablePointer(val target: String) {
 
 }
 
-class ZVariable(var type: String, var value: Any, var pointerString: String = "Z") {
+class ZVariable(var type: String, var value: Any, var pointerString: String? = null) {
 
     constructor(p: Player) : this("Player", p) {}
     constructor(v: ZVector) : this("Vector", v) {}
@@ -82,8 +79,12 @@ class ZVariable(var type: String, var value: Any, var pointerString: String = "Z
     constructor(z: ZVariablePointer, s: String) : this("Pointer", z, s) {}
 
     override fun toString(): String {
-        if (type == "Pointer")
-            return pointerString
+        if (type == "Pointer") {
+            if (pointerString == null) {
+                throw  IllegalArgumentException("Переменной с именем ${(value as ZVariablePointer).target} не существует")
+            }
+            return pointerString!!
+        }
         return value.toString()
     }
 
