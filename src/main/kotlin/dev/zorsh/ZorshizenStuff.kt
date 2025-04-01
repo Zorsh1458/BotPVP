@@ -1,8 +1,16 @@
 package dev.zorsh
 
+import dev.mryd.Main
+import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Player
+import org.bukkit.persistence.PersistentDataType
+import org.bukkit.scheduler.BukkitRunnable
+import org.bukkit.scheduler.BukkitTask
+import kotlin.math.min
 import kotlin.math.sqrt
 
 operator fun Location.plus(l: Location): Location {
@@ -63,6 +71,14 @@ operator fun String.times(m: Int): String {
     return res
 }
 
+operator fun Location.plus(v: ZVector): Location {
+    return Location(this.world, this.x + v.x, this.y + v.y, this.z + v.z, this.yaw, this.pitch)
+}
+
+operator fun Location.minus(v: ZVector): Location {
+    return Location(this.world, this.x - v.x, this.y - v.y, this.z - v.z, this.yaw, this.pitch)
+}
+
 class ZVariablePointer(val target: String) {
 
 }
@@ -100,8 +116,9 @@ fun Player.logZorshizen(text: String) {
 
 enum class TokenType {
     VARIABLE,
-    OPERATOR,
-    FUNCTION
+    OPERATOR
+//    OPERATOR,
+//    FUNCTION
 }
 
 val OPERATOR_PRIORITIES = hashMapOf(
@@ -112,6 +129,7 @@ val OPERATOR_PRIORITIES = hashMapOf(
     Pair("-", 2),
     Pair("*", 3),
     Pair("/", 3),
+    Pair("%", 4),
     Pair("(", -20),
     Pair(")", -19)
 )
@@ -181,4 +199,34 @@ class ZorshizenFunction(initialText: String, val args: MutableList<ZVariable>) {
         res += ')'
         return res
     }
+}
+
+val maxMana = 1000
+
+fun updateManaLoop(): BukkitTask {
+    val task = object : BukkitRunnable() {
+        override fun run() {
+            Bukkit.getWorlds().forEach { world ->
+                world.players.forEach { player ->
+                    if (!Main.mana.containsKey(player.name)) {
+                        Main.mana[player.name] = maxMana
+                    }
+                    Main.mana[player.name] = Main.mana[player.name]!! + 1
+                    Main.mana[player.name] = min(maxMana, Main.mana[player.name]!!)
+
+                    if (player.inventory.itemInMainHand.type == Material.STICK) {
+                        val itemData = player.inventory.itemInMainHand.itemMeta?.persistentDataContainer?.get(MAGIC_STICK, PersistentDataType.STRING)
+                        if (itemData != null && itemData != "no_spell") {
+                            if (Main.mana.containsKey(player.name)) {
+                                player.sendActionBar(Component.text("§9Мана: §f${Main.mana[player.name]}§7/§f1000 §9⭐"))
+                            } else {
+                                player.sendActionBar(Component.text("§9Мана: §f1000§7/§f1000 §9⭐"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }.runTaskTimer(Main.instance, 0L, 2L)
+    return task
 }

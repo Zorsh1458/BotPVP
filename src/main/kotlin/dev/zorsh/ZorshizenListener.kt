@@ -1,18 +1,18 @@
 package dev.zorsh
 
+import dev.mryd.Main
 import kotlinx.coroutines.*
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
-import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerEditBookEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.inventory.meta.BookMeta
 import org.bukkit.persistence.PersistentDataType
 import java.io.File
-import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 
@@ -29,13 +29,43 @@ class ZorshizenListener: Listener {
                     player.sendMessage("§cЗаклинание не выбрано!")
                 } else {
                     event.isCancelled = true
-                    //player.sendMessage("§fЗаклинание: §d$itemData")
-                    val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
-                    val parser = ZorshizenParser()
-                    GlobalScope.launch {
-                        parser.parseSpell(spellText, player)
+
+                    if (!Main.mana.containsKey(player.name)) {
+                        Main.mana[player.name] = maxMana
                     }
-                    //player.sendMessage(spellText)
+                    val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
+                    val parser = ZorshizenParser(player)
+                    GlobalScope.launch {
+                        parser.parseSpell(spellText)
+                    }
+                }
+            }
+        } else if (event.hand == EquipmentSlot.HAND && player.inventory.itemInMainHand.type == Material.WRITABLE_BOOK) {
+            if (event.action == Action.RIGHT_CLICK_AIR || event.action == Action.RIGHT_CLICK_BLOCK) {
+                val pages = (event.item?.itemMeta as BookMeta).pageCount
+                if (pages > 0) {
+                    val fPage = ((event.item?.itemMeta as BookMeta).page(1) as TextComponent).content()
+                    if (fPage.startsWith("[ZORSHIZEN]") && fPage.contains("\n") && fPage.substringAfter("\n")
+                            .startsWith("Name: ")
+                    ) {
+                        var spellName = fPage.substringAfter("\nName: ")
+                        if (spellName.contains(" ")) {
+                            spellName = spellName.substringBefore(" ")
+                        }
+                        if (spellName.contains("\n")) {
+                            spellName = spellName.substringBefore("\n")
+                        }
+                        var text = ""
+                        for (i in 1..pages) {
+                            text += ((event.item?.itemMeta as BookMeta).page(i) as TextComponent).content()
+                            text += "\n"
+                        }
+                        player.sendMessage("§a[Zorshizen] §7Редактирование: §f$spellName")
+                        Path("plugins/Zorshizen2/books/${player.name}").createDirectories()
+                        val file = File("plugins/Zorshizen2/books/${player.name}/$spellName.txt")
+                        file.createNewFile()
+                        file.writeText(text)
+                    }
                 }
             }
         }
@@ -60,8 +90,7 @@ class ZorshizenListener: Listener {
                     text += (event.newBookMeta.page(i) as TextComponent).content()
                     text += "\n"
                 }
-                player.sendMessage("§eEdited: $spellName")
-                player.sendMessage(text)
+                player.sendMessage("§a[Zorshizen] §7Заклинание обновлено: §f$spellName")
                 Path("plugins/Zorshizen2/books/${player.name}").createDirectories()
                 val file = File("plugins/Zorshizen2/books/${player.name}/$spellName.txt")
                 file.createNewFile()
