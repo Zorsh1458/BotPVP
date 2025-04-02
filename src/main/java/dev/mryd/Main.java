@@ -2,6 +2,7 @@ package dev.mryd;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import dev.zorsh.SpellinfoCommand;
 import dev.zorsh.ZorshizenCommands;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
@@ -33,8 +34,10 @@ public class Main extends JavaPlugin implements Listener {
         instance = this;
 
         protocolManager = ProtocolLibrary.getProtocolManager();
-        Objects.requireNonNull(getCommand("zorshizen")).setExecutor(new ZorshizenCommands());
-        Objects.requireNonNull(getCommand("zorshizen")).setTabCompleter(new ZorshizenCommands());
+        Objects.requireNonNull(getCommand("spell")).setExecutor(new ZorshizenCommands());
+        Objects.requireNonNull(getCommand("spell")).setTabCompleter(new ZorshizenCommands());
+        Objects.requireNonNull(getCommand("spellinfo")).setExecutor(new SpellinfoCommand());
+        Objects.requireNonNull(getCommand("spellinfo")).setTabCompleter(new SpellinfoCommand());
 
         Bukkit.getConsoleSender().sendMessage("§e<===== §b[ Zorshizen 2 ] §e=====>");
         Bukkit.getServer().getPluginManager().registerEvents(new ZorshizenListener(), this);

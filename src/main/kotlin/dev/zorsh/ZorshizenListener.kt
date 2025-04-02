@@ -2,6 +2,7 @@ package dev.zorsh
 
 import dev.mryd.Main
 import kotlinx.coroutines.*
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
 import org.bukkit.event.EventHandler
@@ -12,6 +13,8 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.meta.BookMeta
 import org.bukkit.persistence.PersistentDataType
+import org.bukkit.scheduler.BukkitRunnable
+import java.awt.print.Book
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -91,6 +94,17 @@ class ZorshizenListener: Listener {
                     text += "\n"
                 }
                 player.sendMessage("§a[Zorshizen] §7Заклинание обновлено: §f$spellName")
+                object : BukkitRunnable() {
+                    override fun run() {
+                        val item = player.inventory.itemInMainHand
+                        if (item.itemMeta is BookMeta && (item.itemMeta as BookMeta) == event.newBookMeta) {
+                            val meta = item.itemMeta
+                            meta.lore(listOf(Component.text("§7Заклинание: §b$spellName"), Component.text("§7Последнее изменение: §6${player.name}")))
+                            item.setItemMeta(meta)
+                            player.inventory.setItemInMainHand(item)
+                        }
+                    }
+                }.runTaskLater(Main.instance, 1L)
                 Path("plugins/Zorshizen2/books/${player.name}").createDirectories()
                 val file = File("plugins/Zorshizen2/books/${player.name}/$spellName.txt")
                 file.createNewFile()

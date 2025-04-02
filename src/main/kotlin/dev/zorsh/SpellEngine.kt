@@ -7,6 +7,7 @@ import org.bukkit.Location
 import org.bukkit.Particle
 import org.bukkit.World
 import org.bukkit.entity.Player
+import org.bukkit.util.Vector
 import java.time.LocalTime
 import kotlin.math.*
 
@@ -15,6 +16,7 @@ class ZorshizenParser(private val player: Player) {
     private var working = 0.0
     private val startTime = LocalTime.now()
     private var calculations = 0
+    private var prints = 0
 
     // =================================================================================================================
 
@@ -83,8 +85,14 @@ class ZorshizenParser(private val player: Player) {
             "*" -> v1 * v2.number()
             "/" -> v1 / v2.number()
             "%" -> v1 % v2.number()
-            ">" -> if (v1.number() > v2.number()) ZVariable(true) else ZVariable(false)
-            "<" -> if (v1.number() < v2.number()) ZVariable(true) else ZVariable(false)
+            ">" -> ZVariable(v1.number() > v2.number())
+            "<" -> ZVariable(v1.number() < v2.number())
+            ">=" -> ZVariable(v1.number() >= v2.number())
+            "<=" -> ZVariable(v1.number() <= v2.number())
+            "==" -> ZVariable(v1.string() == v2.string())
+            "!=" -> ZVariable(v1.string() != v2.string())
+            "&&" -> ZVariable(v1.boolean() && v2.boolean())
+            "||" -> ZVariable(v1.boolean() || v2.boolean())
             "=" -> v1.set(v2)
             else -> throw IllegalArgumentException("Невозможно применить оператор '$operatorValue' к '$v1' и '$v2'")
         }
@@ -170,10 +178,10 @@ class ZorshizenParser(private val player: Player) {
     // =================================================================================================================
 
     private suspend fun delayZorshizen(duration: Long) {
-        working += duration
-        if (working > 100000) {
-            throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
-        }
+//        working += duration
+//        if (working > 100000) {
+//            throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
+//        }
         delay(duration)
     }
 
@@ -199,6 +207,28 @@ class ZorshizenParser(private val player: Player) {
         Pair("printf", 1)
     )
 
+    private fun MutableList<ZVariable>.arg(n: Int): ZVariable {
+        if (n < 0) {
+            throw IllegalArgumentException("Hyi")
+        }
+        if (this.size < n+1) {
+            throw IllegalArgumentException("Недостаточно аргументов для вызова функции")
+        }
+        return this[n]
+    }
+
+    private fun particle(particle: Particle, location: Location, velocity: ZVector) {
+        location.world.players.forEach { pl ->
+            if (pl.location.distance(location) < 100) {
+                pl.spawnParticle(particle, location.x, location.y, location.z, 0, velocity.x, velocity.y, velocity.z, 1.0, null, true)
+            }
+        }
+    }
+
+    private fun Location.findPlayers(): List<Player> {
+        return this.getNearbyPlayers(0.2).toList()
+    }
+
     private suspend fun ZorshizenFunction.invoke(depth: Int = 0): ZVariable {
         val args = mutableListOf<ZVariable>()
         this.args.forEach { arg ->
@@ -223,9 +253,7 @@ class ZorshizenParser(private val player: Player) {
                 val vel = args[2].vector()
                 when (args[0].toString().trim().lowercase()) {
                     "flame" -> {
-//                        player.sendMessage("${Particle.FLAME}, $pos, 0, ${vel.x}, ${vel.y}, ${vel.z}, 1")
-                        pos.world.spawnParticle(Particle.FLAME, pos, 0, vel.x, vel.y, vel.z)
-//                        pos.world.spawnParticle()
+                        particle(Particle.FLAME, pos, vel)
                     }
                     else -> throw IllegalArgumentException("Партикл ${args[0].toString().trim()} не найден")
                 }
@@ -249,6 +277,11 @@ class ZorshizenParser(private val player: Player) {
                 }
 
                 player.logZorshizen(toPrint)
+                prints++
+                if (prints >= 5) {
+                    prints = 0
+                    delayZorshizen(1)
+                }
 
                 return ZVariable(toPrint.length.toDouble())
             }
@@ -265,6 +298,11 @@ class ZorshizenParser(private val player: Player) {
                 }
 
                 player.logZorshizen(toPrint)
+                prints++
+                if (prints >= 5) {
+                    prints = 0
+                    delayZorshizen(1)
+                }
 
                 return ZVariable(toPrint.length.toDouble())
             }
@@ -274,6 +312,24 @@ class ZorshizenParser(private val player: Player) {
                 }
                 val pl: Player = Bukkit.getPlayer(args[0].toString()) ?: throw IllegalArgumentException("Игрок с именем ${args[0]} не найден")
                 return ZVariable(pl)
+            }
+            "Cast" -> {
+                val name = args.arg(0).toString().lowercase()
+                when (name) {
+                    "barrier" -> {
+                        drainMana(1000)
+                        val loc = args.arg(1).location()
+                        repeat(10) {
+                            particle(Particle.FLASH, loc, ZVector(0.0, 0.0, 0.0))
+                        }
+                        loc.findPlayers().forEach { trg ->
+                            var dir = ZVector(trg.location - loc)
+                            dir = dir / dir.length() * 0.3
+                            trg.velocity = Vector(dir.x, dir.y, dir.z)
+                        }
+                    }
+                }
+                return ZVariable(name)
             }
             "Vector" -> {
                 if (args.size != 3) {
@@ -554,7 +610,44 @@ class ZorshizenParser(private val player: Player) {
                 continue
             }
 
-            if (!c.isDigit() && !OPERATOR_PRIORITIES.containsKey("$c") && (prev == 'O' || prev == 's') && c != ' ' && c != '.' && c != '(' && c != ')' && c != '>') {
+            if (!c.isDigit() && c != '.' && prev == 'N' && num != null) {
+                result.add(ZorshizenToken(ZVariable(num / divider)))
+                divide = false
+                divider = 1
+                num = null
+            }
+
+            if (text.length > charIndex+1 && OPERATOR_PRIORITIES.containsKey(text.substring(charIndex, charIndex+2)) && prev != 'O' && prev != 's' && c != ')' && c != '(') {
+                val t = ZorshizenToken(text.substring(charIndex, charIndex+2))
+                run {
+                    while (operators.isNotEmpty() && t.priority!! <= operators.last().priority!!) {
+                        result.add(operators.last())
+                        operators.removeLast()
+                    }
+                }
+                operators.add(t)
+                prev = 'O'
+
+                skip = 1
+                charIndex++
+                continue
+            } else if (c == '-' && (prev == 'O' || prev == 's')) {
+//                player.logZorshizen("Dolboeb")
+                val t = ZorshizenToken("$")
+                operators.add(t)
+
+                prev = 'O'
+                charIndex++
+                continue
+            } else if (c == '!' && (prev == 'O' || prev == 's')) {
+//                player.logZorshizen("Dolboeb")
+                val t = ZorshizenToken("!")
+                operators.add(t)
+
+                prev = 'O'
+                charIndex++
+                continue
+            } else if (!c.isDigit() && !OPERATOR_PRIORITIES.containsKey("$c") && (prev == 'O' || prev == 's') && c != ' ' && c != '.' && c != '(' && c != ')' && c != '>') {
                 val str = text.substring(charIndex)
                 if (str.contains('(') && !str.substringBefore('(').contains(' ')) {
                     val func = str.substringBefore('(')
@@ -612,13 +705,6 @@ class ZorshizenParser(private val player: Player) {
                     charIndex++
                     continue
                 }
-            }
-
-            if (!c.isDigit() && c != '.' && prev == 'N' && num != null) {
-                result.add(ZorshizenToken(ZVariable(num / divider)))
-                divide = false
-                divider = 1
-                num = null
             }
 
             if (c == '.' && prev == 'N' && !divide) {
@@ -714,20 +800,39 @@ class ZorshizenParser(private val player: Player) {
             calculations = 0
             delayZorshizen(5)
         }
+//        tokens.forEach { t ->
+//            if (t.type == TokenType.VARIABLE) {
+//                player.logZorshizen("Token: ${t.variableValue}")
+//            } else {
+//                player.logZorshizen("Token: ${t.operatorValue}")
+//            }
+//        }
         val stack = mutableListOf<ZVariable>()
         for (t in tokens) {
             if (t.type == TokenType.VARIABLE) {
                 stack.add(t.variableValue!!)
             } else if (t.type == TokenType.OPERATOR) {
-                if (stack.size < 2) {
-                    throw IllegalArgumentException("Невозможно вычислить выражение: недостаточно элементов для выполнения операции '${t.operatorValue}'")
+                if (t.operatorValue == "$") {
+                    val v = stack.last()
+                    stack.removeLast()
+                    val eval = ZVariable(v.number() * -1)
+                    stack.add(eval)
+                } else if (t.operatorValue == "!") {
+                    val v = stack.last()
+                    stack.removeLast()
+                    val eval = ZVariable(!v.boolean())
+                    stack.add(eval)
+                } else {
+                    if (stack.size < 2) {
+                        throw IllegalArgumentException("Невозможно вычислить выражение: недостаточно элементов для выполнения операции '${t.operatorValue}'")
+                    }
+                    val v2 = stack.last()
+                    stack.removeLast()
+                    val v1 = stack.last()
+                    stack.removeLast()
+                    val eval = t.Apply(v1, v2)
+                    stack.add(eval)
                 }
-                val v2 = stack.last()
-                stack.removeLast()
-                val v1 = stack.last()
-                stack.removeLast()
-                val eval = t.Apply(v1, v2)
-                stack.add(eval)
             }
         }
         if (stack.isEmpty()) {
