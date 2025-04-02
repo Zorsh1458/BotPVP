@@ -38,8 +38,9 @@ class ZorshizenListener: Listener {
                     }
                     val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
                     val parser = ZorshizenParser(player)
+                    parser.parseSpell(spellText)
                     GlobalScope.launch {
-                        parser.parseSpell(spellText)
+                        parser.waitForResult()
                     }
                 }
             }

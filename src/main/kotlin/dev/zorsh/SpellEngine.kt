@@ -7,13 +7,15 @@ import org.bukkit.Location
 import org.bukkit.Particle
 import org.bukkit.World
 import org.bukkit.entity.Player
+import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.util.Vector
 import java.time.LocalTime
 import kotlin.math.*
 
 class ZorshizenParser(private val player: Player) {
     private val variables = HashMap<String, ZVariable>()
-    private var working = 0.0
+    private var delayPrecise: Long = 0
+    private var delay: Int = 0
     private val startTime = LocalTime.now()
     private var calculations = 0
     private var prints = 0
@@ -177,12 +179,14 @@ class ZorshizenParser(private val player: Player) {
 
     // =================================================================================================================
 
-    private suspend fun delayZorshizen(duration: Long) {
+    private fun delayZorshizen(duration: Long) {
 //        working += duration
 //        if (working > 100000) {
 //            throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
 //        }
-        delay(duration)
+        delayPrecise += duration
+        delayPrecise = max(0L, delayPrecise)
+//        delay(duration)
     }
 
     // =================================================================================================================
@@ -225,11 +229,11 @@ class ZorshizenParser(private val player: Player) {
         }
     }
 
-    private fun Location.findPlayers(): List<Player> {
-        return this.getNearbyPlayers(0.2).toList()
+    private fun Location.findPlayers(rad: Double = 0.5): List<Player> {
+        return this.getNearbyPlayers(rad).toList()
     }
 
-    private suspend fun ZorshizenFunction.invoke(depth: Int = 0): ZVariable {
+    private fun ZorshizenFunction.invoke(depth: Int = 0): ZVariable {
         val args = mutableListOf<ZVariable>()
         this.args.forEach { arg ->
             if (arg.type == "Pointer") {
@@ -317,15 +321,17 @@ class ZorshizenParser(private val player: Player) {
                 val name = args.arg(0).toString().lowercase()
                 when (name) {
                     "barrier" -> {
-                        drainMana(1000)
+                        drainMana(100)
                         val loc = args.arg(1).location()
-                        repeat(10) {
-                            particle(Particle.FLASH, loc, ZVector(0.0, 0.0, 0.0))
+                        repeat(2) {
+                            particle(Particle.END_ROD, loc, ZVector(0.0, 0.0, 0.0))
                         }
                         loc.findPlayers().forEach { trg ->
-                            var dir = ZVector(trg.location - loc)
-                            dir = dir / dir.length() * 0.3
-                            trg.velocity = Vector(dir.x, dir.y, dir.z)
+                            if (trg != player) {
+                                var dir = ZVector(trg.location + ZVector(0.0, 1.0, 0.0) - loc)
+                                dir = dir / dir.length() * 0.3
+                                trg.velocity = Vector(dir.x, dir.y, dir.z)
+                            }
                         }
                     }
                 }
@@ -502,7 +508,7 @@ class ZorshizenParser(private val player: Player) {
 
     // =================================================================================================================
 
-    private suspend fun ZorshizenInstruction.convertToExpression(): MutableList<ZorshizenToken> {
+    private fun ZorshizenInstruction.convertToExpression(): MutableList<ZorshizenToken> {
         val result = mutableListOf<ZorshizenToken>()
         val operators = mutableListOf<ZorshizenToken>()
 
@@ -792,10 +798,7 @@ class ZorshizenParser(private val player: Player) {
         return result
     }
 
-    private suspend fun evaluate(tokens: MutableList<ZorshizenToken>): ZVariable {
-        if (LocalTime.now().minusSeconds(10).isAfter(startTime)) {
-            throw IllegalArgumentException("Превышено максимальное время работы программы!")
-        }
+    private fun evaluate(tokens: MutableList<ZorshizenToken>): ZVariable {
         if (calculations > 1000) {
             calculations = 0
             delayZorshizen(5)
@@ -843,7 +846,7 @@ class ZorshizenParser(private val player: Player) {
 
     // =================================================================================================================
 
-    private suspend fun parseInstruction(instructionText: String) {
+    private fun parseInstruction(instructionText: String) {
         if (instructionText.replace('{', ' ').replace('}', ' ').trim().isNotEmpty()) {
             val instruction = ZorshizenInstruction(instructionText)
             val expression = instruction.convertToExpression()
@@ -853,7 +856,10 @@ class ZorshizenParser(private val player: Player) {
 
     private var skipInstructions = 0
 
-    private suspend fun checkStatement(instruction: String, afterInstructions: List<String>): Pair<String, Pair<Int, String>>? {
+    private var error: ZorshizenError? = null
+    private var active = true
+
+    private fun checkStatement(instruction: String, afterInstructions: List<String>): Pair<String, Pair<Int, String>>? {
         if (instruction.startsWith(':')) {
             return null
         }
@@ -988,107 +994,128 @@ class ZorshizenParser(private val player: Player) {
         return null
     }
 
-    private suspend fun parseInstructions(instructionsRaw: List<String>): ZorshizenError? {
+    private fun parseInstructions(instructionsRaw: List<String>) {
         var i = 0
         val instructions = instructionsRaw.toMutableList()
         //        Instr Index V      Amount to jump V      V Times to jump
         val jumps = hashMapOf<Int, MutableList<Pair<Int, Int>>>()
-        while (i < instructions.size) {
-            if (jumps.containsKey(i) && jumps[i] != null && jumps[i]!!.isNotEmpty()) {
-                val pair = jumps[i]!![0]
-                if (pair.second > 1) {
-                    jumps[i]!![0] = Pair(pair.first, pair.second - 1)
-                } else {
-                    jumps[i]!!.removeFirst()
+
+        object : BukkitRunnable() {
+            override fun run() {
+                if (LocalTime.now().minusSeconds(10).isAfter(startTime)) {
+                    error = ZorshizenError(i, "Превышено максимальное время работы программы!", instructions[i-1])
+                    active = false
+                    this.cancel()
                 }
-                i -= pair.first
-            }
-            val instructionRaw = instructions[i]
-            i++
-            if (skipInstructions > 0) {
-                skipInstructions--
-            } else {
-                variables["__instruction"] = ZVariable(i.toDouble())
-                var instruction = instructionRaw
-                if (instructionRaw.findKav('#') != -1) {
-                    instruction = instructionRaw.substring(0, instructionRaw.findKav('#'))
+
+                if (i >= instructions.size) {
+                    active = false
+                    this.cancel()
                 }
-                instruction = instruction.trim()
-                if (instruction.isNotEmpty()) {
-                    try {
-                        try {
-                            val replacement = checkStatement(instruction, instructions.drop(i))
-                            if (replacement != null) {
-                                if (replacement.first == "if") {
-                                    instructions[replacement.second.first + i] = replacement.second.second
-                                } else if (replacement.first == "repeat") {
-                                    val size = replacement.second.first
-                                    val count = replacement.second.second.toInt()
-                                    if (count > 1) {
-                                        if (!jumps.containsKey(i + size - 1)) {
-                                            jumps[i + size - 1] = mutableListOf()
-                                        }
-                                        jumps[i + size - 1]?.addFirst(Pair(size - 1, count - 1))
-                                    }
-//                                    val newInstr = mutableListOf<String>()
-//                                    repeat(i) { rep ->
-//                                        newInstr.add(instructions[rep])
-//                                    }
-//                                    repeat(count) {
-//                                        repeat(size) { s ->
-//                                            newInstr.add(instructions[i+s])
-//                                        }
-//                                        //newInstr.add("wait(5)")
-//                                    }
-//                                    repeat(instructions.size-size-i) { aboba ->
-//                                        newInstr.add(instructions[aboba+size+i])
-//                                    }
-//                                    instructions = newInstr
-//                                    instructions.forEach { bebra ->
-//                                        player.sendMessage("Hohol: ($bebra)")
-//                                    }
-                                } else if (replacement.first == "goto") {
-                                    skipInstructions = replacement.second.first
-                                }
-                            }
-                        } catch (e: IllegalArgumentException) {
-                            return ZorshizenError(i, e.message, instruction)
+
+                while (i < instructions.size && delay == 0) {
+                    if (jumps.containsKey(i) && jumps[i] != null && jumps[i]!!.isNotEmpty()) {
+                        val pair = jumps[i]!![0]
+                        if (pair.second > 1) {
+                            jumps[i]!![0] = Pair(pair.first, pair.second - 1)
+                        } else {
+                            jumps[i]!!.removeFirst()
                         }
-                    } catch (e: Exception) {
-                        return ZorshizenError(i, "Неопознанная ошибка: ${e.message}", instruction)
+                        i -= pair.first
+                    }
+
+                    val instructionRaw = instructions[i]
+                    i++
+
+                    if (skipInstructions > 0) {
+                        skipInstructions--
+                    } else {
+                        variables["__instruction"] = ZVariable(i.toDouble())
+                        var instruction = instructionRaw
+                        if (instructionRaw.findKav('#') != -1) {
+                            instruction = instructionRaw.substring(0, instructionRaw.findKav('#'))
+                        }
+                        instruction = instruction.trim()
+                        if (instruction.isNotEmpty()) {
+                            try {
+                                try {
+                                    val replacement = checkStatement(instruction, instructions.drop(i))
+                                    if (replacement != null) {
+                                        if (replacement.first == "if") {
+                                            instructions[replacement.second.first + i] =
+                                                replacement.second.second
+                                        } else if (replacement.first == "repeat") {
+                                            val size = replacement.second.first
+                                            val count = replacement.second.second.toInt()
+                                            if (count > 1) {
+                                                if (!jumps.containsKey(i + size - 1)) {
+                                                    jumps[i + size - 1] = mutableListOf()
+                                                }
+                                                jumps[i + size - 1]?.addFirst(Pair(size - 1, count - 1))
+                                            }
+                                        } else if (replacement.first == "goto") {
+                                            skipInstructions = replacement.second.first
+                                        }
+                                    }
+                                } catch (e: IllegalArgumentException) {
+                                    error = ZorshizenError(i, e.message, instructions[i - 1])
+                                    active = false
+                                    this.cancel()
+                                }
+                            } catch (e: Exception) {
+                                error =
+                                    ZorshizenError(i, "Неопознанная ошибка: ${e.message}", instructions[i - 1])
+                                active = false
+                                this.cancel()
+                            }
+                        }
+                    }
+
+                    while (delayPrecise >= 50) {
+                        delayPrecise -= 50
+                        delay++
                     }
                 }
+                if (delay > 0) {
+                    delay--
+                }
             }
-        }
-        return null
+        }.runTaskTimer(Main.instance, 0L, 1L)
     }
 
-    private suspend fun parseSpellErrors(spellText: String): SpellParsingResult? {
+    private suspend fun waitForEnd(): ZorshizenError? {
+        while (active && LocalTime.now().minusSeconds(20).isBefore(startTime)) {
+            delay(100L)
+        }
+        return error
+    }
+
+    private fun parseSpellErrors(spellText: String) {
         if (!spellText.contains("Code:") || !spellText.substringAfter("Code:").contains("\n")) {
-            return SpellParsingResult(true, "Код должен обозначаться при помощи §7'§eCode:§7'")
+            player.sendMessage("§c[Zorshizen error] §7Код должен обозначаться при помощи §7'§eCode:§7'")
+            return
         }
         val instructions = spellText.substringAfter("Code:").substringAfter("\n").split("\n")
         variables["__player"] = ZVariable(player)
-        val error: ZorshizenError? = parseInstructions(instructions)
-        if (error != null) {
-            return SpellParsingResult(
-                true,
-                "§fИнструкция ${error.instructionNumber}: §c${error.message}\n§bКод инструкции> §7${error.instruction}"
-            )
-        }
-
-//    return SpellParsingResult(false, "§aВсе работает!")
-        return null
+        parseInstructions(instructions)
     }
 
-    suspend fun parseSpell(spellText: String) {
-        val parsingResult = parseSpellErrors(spellText.substringAfter("Name:").substringAfter("\n"))
-        if (parsingResult != null) {
+    suspend fun waitForResult() {
+        val error: ZorshizenError? = waitForEnd()
+        if (error != null) {
+            val parsingResult = SpellParsingResult(
+                true,
+                "§fИнструкция ${error.instructionNumber}: §c${error.message}\n§bКод инструкции> §7${error.instruction.trim()}"
+            )
             if (parsingResult.isError) {
                 player.sendMessage("§c[Zorshizen Error] §7Произошла ошибка:\n§c${parsingResult.message}")
             } else {
                 player.sendMessage("§a${parsingResult.message}")
             }
         }
+    }
+
+    fun parseSpell(spellText: String) {
+        parseSpellErrors(spellText.substringAfter("Name:").substringAfter("\n"))
     }
 }
