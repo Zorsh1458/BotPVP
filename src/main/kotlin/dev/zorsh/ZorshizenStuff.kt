@@ -235,3 +235,17 @@ fun updateManaLoop(): BukkitTask {
     }.runTaskTimer(Main.instance, 0L, 2L)
     return task
 }
+
+enum class ActionType {
+    VELOCITY
+}
+
+class ZorshizenAction(val type: ActionType, val targets: List<Any>) {
+    fun apply() {
+        when (type) {
+            ActionType.VELOCITY -> {
+                (targets[0] as Player).velocity = targets[1] as Vector
+            }
+        }
+    }
+}

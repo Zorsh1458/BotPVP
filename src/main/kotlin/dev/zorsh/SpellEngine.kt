@@ -7,6 +7,7 @@ import org.bukkit.Location
 import org.bukkit.Particle
 import org.bukkit.World
 import org.bukkit.entity.Player
+import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.util.Vector
 import java.time.LocalTime
 import kotlin.math.*
@@ -15,8 +16,11 @@ class ZorshizenParser(private val player: Player) {
     private val variables = HashMap<String, ZVariable>()
     private var working = 0.0
     private val startTime = LocalTime.now()
+    private val maxWorkSeconds: Long = 10
     private var calculations = 0
     private var prints = 0
+    private var active = true
+    private val actions = mutableListOf<ZorshizenAction>()
 
     // =================================================================================================================
 
@@ -178,10 +182,12 @@ class ZorshizenParser(private val player: Player) {
     // =================================================================================================================
 
     private suspend fun delayZorshizen(duration: Long) {
-//        working += duration
-//        if (working > 100000) {
-//            throw IllegalArgumentException("Превышено максимальное время работы программы (100 секунд)")
-//        }
+        if (LocalTime.now().plusSeconds(duration / 1000).minusSeconds(maxWorkSeconds).isAfter(startTime)) {
+            throw IllegalArgumentException("Превышено максимальное время работы программы!")
+        }
+        if (LocalTime.now().plusSeconds(duration / 1000).isBefore(startTime)) {
+            throw IllegalArgumentException("Превышено максимальное время работы программы!")
+        }
         delay(duration)
     }
 
@@ -325,7 +331,8 @@ class ZorshizenParser(private val player: Player) {
                         loc.findPlayers().forEach { trg ->
                             var dir = ZVector(trg.location - loc)
                             dir = dir / dir.length() * 0.3
-                            trg.velocity = Vector(dir.x, dir.y, dir.z)
+                            actions.add(ZorshizenAction(ActionType.VELOCITY, listOf(trg, Vector(dir.x, dir.y, dir.z))))
+//                            trg.velocity = Vector(dir.x, dir.y, dir.z)
                         }
                     }
                 }
@@ -793,7 +800,10 @@ class ZorshizenParser(private val player: Player) {
     }
 
     private suspend fun evaluate(tokens: MutableList<ZorshizenToken>): ZVariable {
-        if (LocalTime.now().minusSeconds(10).isAfter(startTime)) {
+        if (LocalTime.now().minusSeconds(maxWorkSeconds).isAfter(startTime)) {
+            throw IllegalArgumentException("Превышено максимальное время работы программы!")
+        }
+        if (LocalTime.now().isBefore(startTime)) {
             throw IllegalArgumentException("Превышено максимальное время работы программы!")
         }
         if (calculations > 1000) {
@@ -1073,5 +1083,22 @@ class ZorshizenParser(private val player: Player) {
                 player.sendMessage("§a${parsingResult.message}")
             }
         }
+        active = false
+    }
+
+    fun updateActions() {
+        object : BukkitRunnable() {
+            override fun run() {
+                if (!active) {
+                    this.cancel()
+                }
+                if (actions.isNotEmpty()) {
+                    actions.forEach { action ->
+                        action.apply()
+                    }
+                    actions.clear()
+                }
+            }
+        }.runTaskTimer(Main.instance, 0L, 1L)
     }
 }

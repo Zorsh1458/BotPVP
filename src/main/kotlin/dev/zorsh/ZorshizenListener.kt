@@ -38,9 +38,10 @@ class ZorshizenListener: Listener {
                     }
                     val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
                     val parser = ZorshizenParser(player)
-                    GlobalScope.launch {
+                    GlobalScope.launch(Dispatchers.Default) {
                         parser.parseSpell(spellText)
                     }
+                    parser.updateActions()
                 }
             }
         } else if (event.hand == EquipmentSlot.HAND && player.inventory.itemInMainHand.type == Material.WRITABLE_BOOK) {
