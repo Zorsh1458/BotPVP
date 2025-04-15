@@ -81,6 +81,21 @@ class ZVariablePointer(val target: String) {
 }
 
 class ZVariable(var type: String, var value: Any, var pointerString: String? = null) {
+    companion object {
+        @JvmStatic
+        fun create(a: Any): ZVariable {
+            when {
+                a is Player -> return ZVariable(a)
+                a is ZVector -> return ZVariable(a)
+                a is Double -> return ZVariable(a)
+                a is Location -> return ZVariable(a)
+                a is World -> return ZVariable(a)
+                a is String -> return ZVariable(a)
+                a is Boolean -> return ZVariable(a)
+                else -> throw IllegalArgumentException("Невозможно создать переменную из неопознанного класса")
+            }
+        }
+    }
 
     constructor(p: Player) : this("Player", p) {}
     constructor(v: ZVector) : this("Vector", v) {}
@@ -95,7 +110,7 @@ class ZVariable(var type: String, var value: Any, var pointerString: String? = n
     override fun toString(): String {
         if (type == "Pointer") {
             if (pointerString == null) {
-                throw  IllegalArgumentException("Переменной с именем ${(value as ZVariablePointer).target} не существует")
+                throw IllegalArgumentException("Переменной с именем ${(value as ZVariablePointer).target} не существует")
             }
             return pointerString!!
         }
@@ -246,6 +261,21 @@ class ZorshizenAction(val type: ActionType, val targets: List<Any>) {
             ActionType.VELOCITY -> {
                 (targets[0] as Player).velocity = targets[1] as Vector
             }
+        }
+    }
+}
+
+class ActionParameters(val data: List<Any>) {
+    operator fun get(i: Int): ZVariable {
+        return ZVariable.create(data[i])
+    }
+
+    companion object {
+        @JvmStatic
+        fun create(vararg newData: Any): ActionParameters {
+            val list = mutableListOf<Any>()
+            newData.forEach { list.add(it) }
+            return ActionParameters(list.toList())
         }
     }
 }

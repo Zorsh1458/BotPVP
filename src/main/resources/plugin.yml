@@ -9,3 +9,5 @@ commands:
     description: Select Zorshizen spell
   spellinfo:
     description: Show spell info
+  refill:
+    description: Refill mana admin command

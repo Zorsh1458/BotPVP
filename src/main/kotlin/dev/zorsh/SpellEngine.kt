@@ -11,6 +11,7 @@ import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.util.Vector
 import java.time.LocalTime
 import kotlin.math.*
+import kotlin.random.Random
 
 class ZorshizenParser(private val player: Player) {
     private val variables = HashMap<String, ZVariable>()
@@ -20,7 +21,13 @@ class ZorshizenParser(private val player: Player) {
     private var calculations = 0
     private var prints = 0
     private var active = true
-    private val actions = mutableListOf<ZorshizenAction>()
+    private val actions = mutableListOf<Pair<(ActionParameters) -> Unit, ActionParameters>>()
+
+    // =================================================================================================================
+
+    fun newAction(params: ActionParameters, action: (ActionParameters) -> Unit): Unit {
+        actions.add(Pair(action, params))
+    }
 
     // =================================================================================================================
 
@@ -323,16 +330,20 @@ class ZorshizenParser(private val player: Player) {
                 val name = args.arg(0).toString().lowercase()
                 when (name) {
                     "barrier" -> {
-                        drainMana(1000)
+                        drainMana(100)
                         val loc = args.arg(1).location()
-                        repeat(10) {
-                            particle(Particle.FLASH, loc, ZVector(0.0, 0.0, 0.0))
-                        }
-                        loc.findPlayers().forEach { trg ->
-                            var dir = ZVector(trg.location - loc)
-                            dir = dir / dir.length() * 0.3
-                            actions.add(ZorshizenAction(ActionType.VELOCITY, listOf(trg, Vector(dir.x, dir.y, dir.z))))
-//                            trg.velocity = Vector(dir.x, dir.y, dir.z)
+                        particle(Particle.END_ROD, loc, ZVector(0.0, 0.0, 0.0))
+                        newAction(ActionParameters.create(loc)) { params ->
+                            params[0].location().findPlayers().forEach { trg ->
+                                var dir = ZVector(trg.location - loc)
+                                dir = dir / dir.length() * 2.0
+                                trg.velocity = Vector(dir.x, dir.y, dir.z)
+//                                if (trg != player) {
+//                                    var dir = ZVector(trg.location - loc)
+//                                    dir = dir / dir.length() * 0.8
+//                                    trg.velocity = Vector(dir.x, dir.y, dir.z)
+//                                }
+                            }
                         }
                     }
                 }
@@ -465,6 +476,13 @@ class ZorshizenParser(private val player: Player) {
                 }
 
                 throw IllegalArgumentException("Использование: Location(Player) или Location(Vector, World), Location(Number(x), Number(y), Number(z), World) или Location(Number(x), Number(y), Number(z), Number(yaw), Number(pitch), World)")
+            }
+            "Random" -> {
+                var power = 1.0
+                if (args.size > 0) {
+                    power = args[0].number()
+                }
+                return ZVariable(Random.nextDouble() * power)
             }
             else -> throw IllegalArgumentException("Функция $name не найдена!")
         }
@@ -1093,8 +1111,8 @@ class ZorshizenParser(private val player: Player) {
                     this.cancel()
                 }
                 if (actions.isNotEmpty()) {
-                    actions.forEach { action ->
-                        action.apply()
+                    actions.forEach { (action, params) ->
+                        action(params)
                     }
                     actions.clear()
                 }

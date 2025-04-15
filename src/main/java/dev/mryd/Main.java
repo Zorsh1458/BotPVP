@@ -2,6 +2,7 @@ package dev.mryd;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import dev.zorsh.RefillCommand;
 import dev.zorsh.SpellinfoCommand;
 import dev.zorsh.ZorshizenCommands;
 import org.bukkit.Bukkit;
@@ -38,6 +39,8 @@ public class Main extends JavaPlugin implements Listener {
         Objects.requireNonNull(getCommand("spell")).setTabCompleter(new ZorshizenCommands());
         Objects.requireNonNull(getCommand("spellinfo")).setExecutor(new SpellinfoCommand());
         Objects.requireNonNull(getCommand("spellinfo")).setTabCompleter(new SpellinfoCommand());
+        Objects.requireNonNull(getCommand("refill")).setExecutor(new RefillCommand());
+        Objects.requireNonNull(getCommand("refill")).setTabCompleter(new RefillCommand());
 
         Bukkit.getConsoleSender().sendMessage("§e<===== §b[ Zorshizen 2 ] §e=====>");
         Bukkit.getServer().getPluginManager().registerEvents(new ZorshizenListener(), this);
