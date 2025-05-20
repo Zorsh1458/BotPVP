@@ -1,18 +1,9 @@
 package dev.zorsh.engine
 
-import dev.mryd.Main
-import dev.zorsh.mycop.MAGIC_STICK
-import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Player
-import org.bukkit.persistence.PersistentDataType
-import org.bukkit.scheduler.BukkitRunnable
-import org.bukkit.scheduler.BukkitTask
 import org.bukkit.util.Vector
-import kotlin.math.min
 import kotlin.math.sqrt
 
 operator fun Location.plus(l: Location): Location {
@@ -222,51 +213,6 @@ class ZorshizenFunction(initialText: String, val args: MutableList<ZVariable>) {
     }
 }
 
-val maxMana = 1000000
-
-fun updateManaLoop(): BukkitTask {
-    val task = object : BukkitRunnable() {
-        override fun run() {
-            Bukkit.getWorlds().forEach { world ->
-                world.players.forEach { player ->
-                    if (!Main.mana.containsKey(player.name)) {
-                        Main.mana[player.name] = maxMana
-                    }
-                    Main.mana[player.name] = Main.mana[player.name]!! + 1000
-                    Main.mana[player.name] = min(maxMana, Main.mana[player.name]!!)
-
-                    if (player.inventory.itemInMainHand.type == Material.STICK) {
-                        val itemData = player.inventory.itemInMainHand.itemMeta?.persistentDataContainer?.get(
-                            MAGIC_STICK, PersistentDataType.STRING)
-                        if (itemData != null && itemData != "no_spell") {
-                            if (Main.mana.containsKey(player.name)) {
-                                player.sendActionBar(Component.text("§9Мана: §f${Main.mana[player.name]!!/1000}§7/§f${maxMana /1000} §9⭐"))
-                            } else {
-                                player.sendActionBar(Component.text("§9Мана: §f1000§7/§f1000 §9⭐"))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }.runTaskTimer(Main.instance, 0L, 2L)
-    return task
-}
-
-enum class ActionType {
-    VELOCITY
-}
-
-class ZorshizenAction(val type: ActionType, val targets: List<Any>) {
-    fun apply() {
-        when (type) {
-            ActionType.VELOCITY -> {
-                (targets[0] as Player).velocity = targets[1] as Vector
-            }
-        }
-    }
-}
-
 class ActionParameters(val data: List<Any>) {
     operator fun get(i: Int): ZVariable {
         return ZVariable.create(data[i])
@@ -274,7 +220,7 @@ class ActionParameters(val data: List<Any>) {
 
     companion object {
         @JvmStatic
-        fun create(vararg newData: Any): ActionParameters {
+        fun build(vararg newData: Any): ActionParameters {
             val list = mutableListOf<Any>()
             newData.forEach { list.add(it) }
             return ActionParameters(list.toList())

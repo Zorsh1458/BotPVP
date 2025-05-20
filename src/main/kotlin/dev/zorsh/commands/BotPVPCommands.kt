@@ -1,5 +1,6 @@
 package dev.zorsh.commands
 
+import dev.zorsh.engine.BotPVPManager
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
@@ -14,7 +15,7 @@ class BotPVPCommands : CommandExecutor, TabCompleter {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender is Player) {
             if (command.name.equals("bot", ignoreCase = true)) {
-                sender
+                BotPVPManager.spawnPvpBot(sender)
             }
         }
         return true
@@ -22,33 +23,10 @@ class BotPVPCommands : CommandExecutor, TabCompleter {
 
     override fun onTabComplete(sender: CommandSender, command: Command, label: String, args: Array<out String>): List<String> {
         if (args.isEmpty()) {
-            val path = Path("plugins/Zorshizen2/books/${sender.name}")
-            if (path.listDirectoryEntries().isEmpty()) {
-                return listOf("У вас нет заклинаний")
-            }
-            val res = mutableListOf<String>()
-            path.listDirectoryEntries().forEach { e ->
-                val after = e.toString().substringAfter("${sender.name}/")
-                if (after.contains(".txt")) {
-                    res.add(after.substringBefore(".txt"))
-                }
-            }
-            return res.toList()
+            return listOf()
         }
 
-        val path = Path("plugins/Zorshizen2/books/${sender.name}")
-        if (path.listDirectoryEntries().isEmpty()) {
-            return listOf("У вас нет заклинаний")
-        }
-        val res = mutableListOf<String>()
-        path.listDirectoryEntries().forEach { e ->
-            val after = e.toString().substringAfter("${sender.name}/")
-            if (after.contains(".txt")) {
-                res.add(after.substringBefore(".txt"))
-            }
-        }
-//        return res.toList()
+        val res = listOf<String>()
         return StringUtil.copyPartialMatches(args[0], res, mutableListOf())
     }
-
 }

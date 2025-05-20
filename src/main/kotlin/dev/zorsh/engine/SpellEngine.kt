@@ -200,26 +200,6 @@ class ZorshizenParser(private val player: Player) {
 
     // =================================================================================================================
 
-    private fun drainMana(amount: Int) {
-        if (!Main.mana.containsKey(player.name)) {
-            Main.mana[player.name] = maxMana
-        }
-        if (Main.mana[player.name]!! < amount) {
-            Main.mana[player.name] = 0
-            throw IllegalArgumentException("Мана закончилась")
-        }
-        Main.mana[player.name] = Main.mana[player.name]!! - amount
-    }
-
-    private val functionManaCost = hashMapOf(
-        Pair("Particle", 50),
-        Pair("Location", 10),
-        Pair("Vector", 10),
-        Pair("Player", 100),
-        Pair("print", 1),
-        Pair("printf", 1)
-    )
-
     private fun MutableList<ZVariable>.arg(n: Int): ZVariable {
         if (n < 0) {
             throw IllegalArgumentException("Hyi")
@@ -252,11 +232,6 @@ class ZorshizenParser(private val player: Player) {
             }
         }
         calculations++
-        if (functionManaCost.containsKey(name)) {
-            drainMana(functionManaCost[name]!!)
-        } else {
-            drainMana(10)
-        }
         when (name) {
             "Particle" -> {
                 if (args.size < 3) {
@@ -325,29 +300,6 @@ class ZorshizenParser(private val player: Player) {
                 }
                 val pl: Player = Bukkit.getPlayer(args[0].toString()) ?: throw IllegalArgumentException("Игрок с именем ${args[0]} не найден")
                 return ZVariable(pl)
-            }
-            "Cast" -> {
-                val name = args.arg(0).toString().lowercase()
-                when (name) {
-                    "barrier" -> {
-                        drainMana(100)
-                        val loc = args.arg(1).location()
-                        particle(Particle.END_ROD, loc, ZVector(0.0, 0.0, 0.0))
-                        newAction(ActionParameters.create(loc)) { params ->
-                            params[0].location().findPlayers().forEach { trg ->
-                                var dir = ZVector(trg.location - loc)
-                                dir = dir / dir.length() * 0.5
-                                trg.velocity = Vector(dir.x, dir.y, dir.z)
-//                                if (trg != player) {
-//                                    var dir = ZVector(trg.location - loc)
-//                                    dir = dir / dir.length() * 0.8
-//                                    trg.velocity = Vector(dir.x, dir.y, dir.z)
-//                                }
-                            }
-                        }
-                    }
-                }
-                return ZVariable(name)
             }
             "Vector" -> {
                 if (args.size != 3) {
