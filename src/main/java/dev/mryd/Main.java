@@ -2,20 +2,18 @@ package dev.mryd;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
-import dev.zorsh.RefillCommand;
-import dev.zorsh.SpellinfoCommand;
-import dev.zorsh.ZorshizenCommands;
+import dev.zorsh.commands.BotPVPCommands;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 import lombok.Getter;
 import org.bukkit.plugin.java.JavaPlugin;
-import dev.zorsh.ZorshizenListener;
+import dev.zorsh.listeners.BotPVPListener;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Objects;
 
-import static dev.zorsh.ZorshizenStuffKt.updateManaLoop;
+import static dev.zorsh.engine.ZorshizenStuffKt.updateManaLoop;
 
 public class Main extends JavaPlugin implements Listener {
     @Getter
@@ -35,15 +33,11 @@ public class Main extends JavaPlugin implements Listener {
         instance = this;
 
         protocolManager = ProtocolLibrary.getProtocolManager();
-        Objects.requireNonNull(getCommand("spell")).setExecutor(new ZorshizenCommands());
-        Objects.requireNonNull(getCommand("spell")).setTabCompleter(new ZorshizenCommands());
-        Objects.requireNonNull(getCommand("spellinfo")).setExecutor(new SpellinfoCommand());
-        Objects.requireNonNull(getCommand("spellinfo")).setTabCompleter(new SpellinfoCommand());
-        Objects.requireNonNull(getCommand("refill")).setExecutor(new RefillCommand());
-        Objects.requireNonNull(getCommand("refill")).setTabCompleter(new RefillCommand());
+        Objects.requireNonNull(getCommand("bot")).setExecutor(new BotPVPCommands());
+        Objects.requireNonNull(getCommand("bot")).setTabCompleter(new BotPVPCommands());
 
         Bukkit.getConsoleSender().sendMessage("§e<===== §b[ Zorshizen 2 ] §e=====>");
-        Bukkit.getServer().getPluginManager().registerEvents(new ZorshizenListener(), this);
+        Bukkit.getServer().getPluginManager().registerEvents(new BotPVPListener(), this);
         Bukkit.getConsoleSender().sendMessage("§e+> §bPlugin enabled!");
         task = updateManaLoop();
     }

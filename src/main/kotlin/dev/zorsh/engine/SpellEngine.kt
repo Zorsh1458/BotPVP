@@ -1,4 +1,4 @@
-package dev.zorsh
+package dev.zorsh.engine
 
 import dev.mryd.Main
 import kotlinx.coroutines.delay
@@ -336,7 +336,7 @@ class ZorshizenParser(private val player: Player) {
                         newAction(ActionParameters.create(loc)) { params ->
                             params[0].location().findPlayers().forEach { trg ->
                                 var dir = ZVector(trg.location - loc)
-                                dir = dir / dir.length() * 2.0
+                                dir = dir / dir.length() * 0.5
                                 trg.velocity = Vector(dir.x, dir.y, dir.z)
 //                                if (trg != player) {
 //                                    var dir = ZVector(trg.location - loc)
@@ -589,8 +589,9 @@ class ZorshizenParser(private val player: Player) {
                     if (eval.contains(' ')) {
                         throw IllegalArgumentException("Имя переменной не должно содержать пробелов")
                     }
-                    if (eval.contains('.') || eval.contains(',') || eval.contains(';') || eval.contains('{') || eval.contains('}') || eval.contains(':') || eval.contains('%') || eval.contains('^') || eval.contains('+') || eval.contains('-') || eval.contains('*') || eval.contains('/')) {
-                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов")
+//                    if (eval.contains('.') || eval.contains(',') || eval.contains(';') || eval.contains('{') || eval.contains('}') || eval.contains(':') || eval.contains('%') || eval.contains('^') || eval.contains('+') || eval.contains('-') || eval.contains('*') || eval.contains('/')) {
+                    if (eval.contains(',') || eval.contains(';') || eval.contains('{') || eval.contains('}') || eval.contains(':') || eval.contains('%') || eval.contains('^') || eval.contains('+') || eval.contains('-') || eval.contains('*') || eval.contains('/')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов: §e$eval")
                     }
                     if (variables.containsKey(eval)) {
                         result.add(ZorshizenToken(ZVariable(ZVariablePointer(eval), variables[eval].toString())))
@@ -602,8 +603,9 @@ class ZorshizenParser(private val player: Player) {
                     if (txt.contains(' ')) {
                         throw IllegalArgumentException("Имя переменной не должно содержать пробелов")
                     }
-                    if (txt.contains('.') || txt.contains(',') || txt.contains(';') || txt.contains('{') || txt.contains('}') || txt.contains(':') || txt.contains('%') || txt.contains('^') || txt.contains('+') || txt.contains('-') || txt.contains('*') || txt.contains('/')) {
-                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов")
+//                    if (txt.contains('.') || txt.contains(',') || txt.contains(';') || txt.contains('{') || txt.contains('}') || txt.contains(':') || txt.contains('%') || txt.contains('^') || txt.contains('+') || txt.contains('-') || txt.contains('*') || txt.contains('/')) {
+                    if (txt.contains(',') || txt.contains(';') || txt.contains('{') || txt.contains('}') || txt.contains(':') || txt.contains('%') || txt.contains('^') || txt.contains('+') || txt.contains('-') || txt.contains('*') || txt.contains('/')) {
+                        throw IllegalArgumentException("Имя переменной не должно содержать специальных символов: §e$txt")
                     }
                     if (variables.containsKey(txt)) {
                         result.add(ZorshizenToken(ZVariable(ZVariablePointer(txt), variables[txt].toString())))
@@ -1111,10 +1113,11 @@ class ZorshizenParser(private val player: Player) {
                     this.cancel()
                 }
                 if (actions.isNotEmpty()) {
-                    actions.forEach { (action, params) ->
+                    var toProcess = actions
+                    actions.clear()
+                    toProcess.forEach { (action, params) ->
                         action(params)
                     }
-                    actions.clear()
                 }
             }
         }.runTaskTimer(Main.instance, 0L, 1L)

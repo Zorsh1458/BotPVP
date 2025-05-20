@@ -1,7 +1,11 @@
-package dev.zorsh
+package dev.zorsh.listeners
 
 import dev.mryd.Main
+import dev.zorsh.mycop.MAGIC_STICK
+import dev.zorsh.engine.ZorshizenParser
+import dev.zorsh.engine.maxMana
 import kotlinx.coroutines.*
+import net.citizensnpcs.util.PlayerAnimation
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
@@ -14,12 +18,11 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.meta.BookMeta
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.scheduler.BukkitRunnable
-import java.awt.print.Book
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 
-class ZorshizenListener: Listener {
+class BotPVPListener: Listener {
     @OptIn(DelicateCoroutinesApi::class)
     @EventHandler
     fun onPlayerRightClicksBlock(event: PlayerInteractEvent) {
@@ -33,15 +36,19 @@ class ZorshizenListener: Listener {
                 } else {
                     event.isCancelled = true
 
-                    if (!Main.mana.containsKey(player.name)) {
-                        Main.mana[player.name] = maxMana
+                    if (!player.hasCooldown(Material.STICK)) {
+                        if (!Main.mana.containsKey(player.name)) {
+                            Main.mana[player.name] = maxMana
+                        }
+                        val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
+                        val parser = ZorshizenParser(player)
+                        GlobalScope.launch(Dispatchers.Default) {
+                            parser.parseSpell(spellText)
+                        }
+                        parser.updateActions()
+                        player.setCooldown(Material.STICK, 15)
+                        PlayerAnimation.ARM_SWING.play(player)
                     }
-                    val spellText = File("plugins/Zorshizen2/books/${player.name}/$itemData.txt").readText()
-                    val parser = ZorshizenParser(player)
-                    GlobalScope.launch(Dispatchers.Default) {
-                        parser.parseSpell(spellText)
-                    }
-                    parser.updateActions()
                 }
             }
         } else if (event.hand == EquipmentSlot.HAND && player.inventory.itemInMainHand.type == Material.WRITABLE_BOOK) {

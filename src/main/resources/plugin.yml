@@ -1,13 +1,10 @@
-name: Zorshizen2
+name: BotPVP
 version: 1.4.8.8
 main: dev.mryd.Main
 authors:
   - Zorsh
 api-version: '1.21'
 commands:
-  spell:
-    description: Select Zorshizen spell
-  spellinfo:
-    description: Show spell info
-  refill:
-    description: Refill mana admin command
+  bot:
+    description: Spawn bot
+    permission: op

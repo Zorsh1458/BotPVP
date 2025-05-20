@@ -1,44 +1,39 @@
-package dev.zorsh
+package dev.zorsh.commands
 
 import net.kyori.adventure.text.Component
-import org.bukkit.Material
+import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.event.HoverEvent
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
-import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.StringUtil
 import kotlin.io.path.Path
 import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.readText
 
 
-class ZorshizenCommands : CommandExecutor, TabCompleter {
+class SpellinfoCommand : CommandExecutor, TabCompleter {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender is Player) {
-            if (command.name.equals("spell", ignoreCase = true)) {
+            if (command.name.equals("spellinfo", ignoreCase = true)) {
                 if (args.getOrNull(0) == null) {
                     sender.sendMessage("§cУкажите заклинание!")
-                } else if (sender.inventory.itemInMainHand.type != Material.STICK) {
-                    sender.sendMessage("§cВозьмите в руки палочку!")
                 } else {
                     val spell = args.getOrNull(0)
                     val path = Path("plugins/Zorshizen2/books/${sender.name}/$spell.txt")
-                    val item = sender.inventory.itemInMainHand
-                    val meta = item.itemMeta
-                    meta.displayName(Component.text("§dВолшебная палочка"))
                     if (path.exists()) {
-                        meta.lore(mutableListOf(Component.text("§7Выбранно: §e$spell")))
-                        meta.persistentDataContainer.set(MAGIC_STICK, PersistentDataType.STRING, "$spell")
-                        sender.sendMessage("§d[Zorshizen] §7Выбрано заклинание: §e$spell")
+                        sender.sendMessage("§d[Zorshizen] §7Заклинание §e$spell§7:")
+                        val spellText = path.readText()
+                        sender.sendMessage(Component.text(spellText)
+                            .hoverEvent(HoverEvent.showText(Component.text("§7Нажмите чтобы скопировать")))
+                            .clickEvent(ClickEvent.copyToClipboard(spellText))
+                        )
                     } else {
-                        meta.lore(mutableListOf(Component.text("§cЗаклинание не выбрано")))
-                        meta.persistentDataContainer.set(MAGIC_STICK, PersistentDataType.STRING, "no_spell")
                         sender.sendMessage("§d[Zorshizen] §cУ вас нет заклинания $spell")
                     }
-                    item.itemMeta = meta
-                    sender.inventory.setItemInMainHand(item)
                 }
             }
         }

@@ -1,6 +1,7 @@
-package dev.zorsh
+package dev.zorsh.engine
 
 import dev.mryd.Main
+import dev.zorsh.mycop.MAGIC_STICK
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -235,10 +236,11 @@ fun updateManaLoop(): BukkitTask {
                     Main.mana[player.name] = min(maxMana, Main.mana[player.name]!!)
 
                     if (player.inventory.itemInMainHand.type == Material.STICK) {
-                        val itemData = player.inventory.itemInMainHand.itemMeta?.persistentDataContainer?.get(MAGIC_STICK, PersistentDataType.STRING)
+                        val itemData = player.inventory.itemInMainHand.itemMeta?.persistentDataContainer?.get(
+                            MAGIC_STICK, PersistentDataType.STRING)
                         if (itemData != null && itemData != "no_spell") {
                             if (Main.mana.containsKey(player.name)) {
-                                player.sendActionBar(Component.text("§9Мана: §f${Main.mana[player.name]!!/1000}§7/§f${maxMana/1000} §9⭐"))
+                                player.sendActionBar(Component.text("§9Мана: §f${Main.mana[player.name]!!/1000}§7/§f${maxMana /1000} §9⭐"))
                             } else {
                                 player.sendActionBar(Component.text("§9Мана: §f1000§7/§f1000 §9⭐"))
                             }

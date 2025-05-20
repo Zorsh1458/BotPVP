@@ -1,4 +1,4 @@
-package dev.zorsh
+package dev.zorsh.mycop
 
 import dev.mryd.Main
 import org.bukkit.NamespacedKey
