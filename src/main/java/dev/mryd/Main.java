@@ -14,8 +14,6 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.HashMap;
 import java.util.Objects;
 
-import static dev.zorsh.engine.ZorshizenStuffKt.updateManaLoop;
-
 public class Main extends JavaPlugin implements Listener {
     @Getter
     public static Main instance;
@@ -40,14 +38,5 @@ public class Main extends JavaPlugin implements Listener {
     public void onDisable() {
         Bukkit.getConsoleSender().sendMessage("§cHyiillaa");
         BotPVPManager.clearPvpBots();
-
-//        RTSManager.clearData();
-//        NPCManager.clearNpcs();
     }
-
-//    @Override
-//    public ChunkGenerator getDefaultWorldGenerator(@NotNull String worldName, String id) {
-//        getLogger().info("[Zet Corporation] ZChunks is used!");
-//        return new ZChunkGenerator();
-//    }
 }

@@ -7,8 +7,6 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 import org.bukkit.util.StringUtil
-import kotlin.io.path.Path
-import kotlin.io.path.listDirectoryEntries
 
 
 class BotPVPCommands : CommandExecutor, TabCompleter {
