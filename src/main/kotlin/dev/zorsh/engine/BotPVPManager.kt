@@ -1,17 +1,16 @@
 package dev.zorsh.engine
 
-import org.bukkit.entity.Entity
-import org.bukkit.entity.EntityType
+import dev.zorsh.entities.BotEntity
 import org.bukkit.entity.Player
 
 class BotPVPManager {
     companion object {
-        private val botList = hashMapOf<Player, Entity>()
+        private val botList = hashMapOf<Player, BotEntity>()
 
         @JvmStatic
         fun spawnPvpBot(player: Player) {
             val loc = player.location
-            val bot = loc.world.spawnEntity(loc, EntityType.HUSK)
+            val bot = BotEntity(loc)
             botList[player] = bot
         }
 

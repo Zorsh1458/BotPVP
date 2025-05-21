@@ -1,10 +1,7 @@
 package dev.zorsh.listeners
 
 import dev.mryd.Main
-import dev.zorsh.mycop.MAGIC_STICK
-import dev.zorsh.engine.ZorshizenParser
 import kotlinx.coroutines.*
-import net.citizensnpcs.util.PlayerAnimation
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 import org.bukkit.Material
@@ -15,7 +12,6 @@ import org.bukkit.event.player.PlayerEditBookEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.meta.BookMeta
-import org.bukkit.persistence.PersistentDataType
 import org.bukkit.scheduler.BukkitRunnable
 import java.io.File
 import kotlin.io.path.Path

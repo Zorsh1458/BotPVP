@@ -1,6 +1,7 @@
 package dev.zorsh.engine
 
 import dev.mryd.Main
+import dev.zorsh.entities.BotEntity
 import kotlinx.coroutines.delay
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -13,7 +14,7 @@ import java.time.LocalTime
 import kotlin.math.*
 import kotlin.random.Random
 
-class ZorshizenParser(private val player: Player) {
+class ZorshizenParser(private val player: Player, private val bot: BotEntity) {
     private val variables = HashMap<String, ZVariable>()
     private var working = 0.0
     private val startTime = LocalTime.now()
@@ -233,19 +234,28 @@ class ZorshizenParser(private val player: Player) {
         }
         calculations++
         when (name) {
-            "Particle" -> {
-                if (args.size < 3) {
-                    throw IllegalArgumentException("Для функции Particle нужны 3 аргумента")
-                }
-                val pos = args[1].location()
-                val vel = args[2].vector()
-                when (args[0].toString().trim().lowercase()) {
-                    "flame" -> {
-                        particle(Particle.FLAME, pos, vel)
-                    }
-                    else -> throw IllegalArgumentException("Партикл ${args[0].toString().trim()} не найден")
-                }
-                return ZVariable(args[0].toString().trim())
+            "moveLeft" -> {
+                bot.setStrafeLR(0.1)
+                return ZVariable(ZVector(bot.location))
+            }
+            "moveRight" -> {
+                bot.setStrafeLR(-0.1)
+                return ZVariable(ZVector(bot.location))
+            }
+            "moveForward" -> {
+                bot.setStrafeFB(0.1)
+                return ZVariable(ZVector(bot.location))
+            }
+            "moveBackwards" -> {
+                bot.setStrafeFB(-0.1)
+                return ZVariable(ZVector(bot.location))
+            }
+            "botLocation" -> {
+                return ZVariable(ZVector(bot.location))
+            }
+            "botEntity" -> {
+                TODO("Make ZVariable(Entity)")
+                //return ZVariable(bot.getEntity())
             }
             "printf" -> {
                 if (args.isEmpty()) {

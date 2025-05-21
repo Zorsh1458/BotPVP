@@ -31,6 +31,14 @@ class ZVector(var x: Double, var y: Double, var z: Double) {
     constructor(vector: ZVector): this(vector.x, vector.y, vector.z) {}
     constructor(vector: Vector): this(vector.x, vector.y, vector.z) {}
 
+    fun normalized(): ZVector {
+        return this / this.length()
+    }
+
+    fun vector(): Vector {
+        return Vector(x, y, z)
+    }
+
     operator fun times(m: Double): ZVector {
         return ZVector(x*m, y*m, z*m)
     }
