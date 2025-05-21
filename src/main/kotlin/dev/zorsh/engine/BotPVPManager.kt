@@ -10,8 +10,27 @@ class BotPVPManager {
         @JvmStatic
         fun spawnPvpBot(player: Player) {
             val loc = player.location
-            val bot = BotEntity(loc)
+            val bot = BotEntity(loc, player)
+            if (botList.containsKey(player)) {
+                botList[player]?.remove()
+            }
             botList[player] = bot
+        }
+
+        @JvmStatic
+        fun removeBot(player: Player) {
+            if (botList.containsKey(player)) {
+                botList[player]?.remove()
+                botList.remove(player)
+            }
+        }
+
+        @JvmStatic
+        fun getBot(player: Player): BotEntity? {
+            if (botList.containsKey(player)) {
+                return botList[player]
+            }
+            return null
         }
 
         @JvmStatic

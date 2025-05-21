@@ -18,7 +18,7 @@ class ZorshizenParser(private val player: Player, private val bot: BotEntity) {
     private val variables = HashMap<String, ZVariable>()
     private var working = 0.0
     private val startTime = LocalTime.now()
-    private val maxWorkSeconds: Long = 10
+    private val maxWorkSeconds: Long = 100
     private var calculations = 0
     private var prints = 0
     private var active = true
@@ -234,27 +234,44 @@ class ZorshizenParser(private val player: Player, private val bot: BotEntity) {
         }
         calculations++
         when (name) {
-            "moveLeft" -> {
+            "botMoveLeft" -> {
                 bot.setStrafeLR(0.1)
                 return ZVariable(ZVector(bot.location))
             }
-            "moveRight" -> {
+            "botMoveRight" -> {
                 bot.setStrafeLR(-0.1)
                 return ZVariable(ZVector(bot.location))
             }
-            "moveForward" -> {
+            "botMoveForward" -> {
                 bot.setStrafeFB(0.1)
                 return ZVariable(ZVector(bot.location))
             }
-            "moveBackwards" -> {
+            "botMoveBackwards" -> {
                 bot.setStrafeFB(-0.1)
+                return ZVariable(ZVector(bot.location))
+            }
+            "botSprint" -> {
+                bot.setStrafeFB(0.133)
+                return ZVariable(ZVector(bot.location))
+            }
+            "botJump" -> {
+                bot.jump()
                 return ZVariable(ZVector(bot.location))
             }
             "botLocation" -> {
                 return ZVariable(ZVector(bot.location))
             }
+            "botLook" -> {
+                if (args.size != 2) {
+                    throw IllegalArgumentException("Для функции Player нужны 2 аргумента")
+                }
+                bot.look(args[0].number(), args[1].number())
+                return ZVariable(0.0)
+//                TODO("Make ZVariable(Entity)")
+            }
             "botEntity" -> {
-                TODO("Make ZVariable(Entity)")
+                return ZVariable(0.0)
+//                TODO("Make ZVariable(Entity)")
                 //return ZVariable(bot.getEntity())
             }
             "printf" -> {
@@ -340,13 +357,13 @@ class ZorshizenParser(private val player: Player, private val bot: BotEntity) {
             }
             "cot" -> {
                 if (args.size != 1) {
-                    throw IllegalArgumentException("Для функции cos нужен 1 аргумент")
+                    throw IllegalArgumentException("Для функции cot нужен 1 аргумент")
                 }
                 return ZVariable(1.0 / tan(args[0].number()))
             }
             "tan" -> {
                 if (args.size != 1) {
-                    throw IllegalArgumentException("Для функции cos нужен 1 аргумент")
+                    throw IllegalArgumentException("Для функции tan нужен 1 аргумент")
                 }
                 return ZVariable(tan(args[0].number()))
             }
@@ -361,6 +378,36 @@ class ZorshizenParser(private val player: Player, private val bot: BotEntity) {
                     throw IllegalArgumentException("Для функции sin нужен 1 аргумент")
                 }
                 return ZVariable(sin(args[0].number()))
+            }
+            "acot" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции acot нужен 1 аргумент")
+                }
+                return ZVariable(atan(1.0 / args[0].number()))
+            }
+            "atan" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции atan нужен 1 аргумент")
+                }
+                return ZVariable(atan(args[0].number()))
+            }
+            "acos" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции acos нужен 1 аргумент")
+                }
+                return ZVariable(acos(args[0].number()))
+            }
+            "asin" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции asin нужен 1 аргумент")
+                }
+                return ZVariable(asin(args[0].number()))
+            }
+            "sqrt" -> {
+                if (args.size != 1) {
+                    throw IllegalArgumentException("Для функции sqrt нужен 1 аргумент")
+                }
+                return ZVariable(sqrt(args[0].number()))
             }
             "round" -> {
                 if (args.size != 1) {
